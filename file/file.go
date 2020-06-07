@@ -16,7 +16,7 @@ var Waiter = sync.WaitGroup{}
 //GetAllMDFileName 获取当前目录下的所有指定格式的文件
 func GetAllMDFileName() []string {
 	pwd, _ := os.Getwd()
-	filePathNames, err := filepath.Glob(filepath.Join(pwd, "hexo*.md"))
+	filePathNames, err := filepath.Glob(filepath.Join(pwd, "*.md"))
 	if err != nil {
 		log.Fatal(err)
 	}
