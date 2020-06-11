@@ -8,10 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
+	"time"
 )
-
-var Waiter = sync.WaitGroup{}
 
 //GetAllMDFileName 获取当前目录下的所有指定格式的文件
 func GetAllMDFileName() []string {
@@ -35,7 +33,12 @@ func GetAllMDFileName() []string {
 
 //ReadAllMDFile 读取所有获取到的文件
 func ReadAllMDFile(filePathNames []string) {
-	Waiter.Add(1)
+	newDir := fmt.Sprintf("newPost%d", time.Now().Unix())
+	err := os.Mkdir(newDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	//遍历读取所有的文件
 	for k, v := range filePathNames {
 		file, err := os.Open(v)
@@ -47,7 +50,6 @@ func ReadAllMDFile(filePathNames []string) {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
-			//fmt.Println(line)
 			//如果行中包含 date 标签,则替换掉
 			if strings.Contains(line, "date:") {
 				line = HandleDate(line)
@@ -63,21 +65,26 @@ func ReadAllMDFile(filePathNames []string) {
 		}
 		fmt.Printf("正在更改第 %d 个文件 %s\n", k+1, v)
 
-		if err := HandleContent(v, result); err != nil {
+		if err := HandleContent(newDir, v, result); err != nil {
 			log.Fatal("写入文件失败")
 		}
 		fmt.Printf("%s写入完成\n", v)
-
 	}
-	defer Waiter.Done()
 
 }
 
 //HandleContent 将处理完的内容覆盖进去
-func HandleContent(filePathNames string, result string) error {
-	f, err := os.OpenFile(filePathNames, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+func HandleContent(newDir string, filePathNames string, result string) error {
+	//如果路径分割符为 \ 则替换为 /
+	if strings.Contains(filePathNames, "\\") {
+		filePathNames = strings.Replace(filePathNames, "\\", "/", -1)
+	}
+	//获取最后一个分割符后的名称
+	index := strings.LastIndex(filePathNames, "/")
+	fileName := filePathNames[index+1:]
+	//创建文件
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s", newDir, fileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	defer f.Close()
@@ -90,7 +97,7 @@ func HandleContent(filePathNames string, result string) error {
 
 //HandleTags 处理标签
 func HandleTags(tags string) string {
-	//查找tas后的空格,将所有的tags用 [] 包裹起来
+	//查找tas后的空格,将所有的 tags 用 [] 包裹起来
 	index := strings.Index(tags, " ")
 	tags = fmt.Sprintf("%s [%s]", tags[:index], tags[index+1:])
 	return tags
@@ -98,7 +105,7 @@ func HandleTags(tags string) string {
 
 //HandleCategories 处理分类
 func HandleCategories(categories string) string {
-	//查找到分类的空格,整理成hugo 的格式
+	//查找到分类的空格,整理成 hugo 的格式
 	index := strings.Index(categories, " ")
 	categories = fmt.Sprintf("%s [%s]", categories[:index], categories[index+1:])
 	return categories
@@ -106,11 +113,8 @@ func HandleCategories(categories string) string {
 
 //HandleDate 处理日期
 func HandleDate(date string) string {
-
 	//查找到年月日后的空格,根据 hugo date 的格式进行更改
 	index := strings.LastIndex(date, " ")
-	fmt.Println(index)
 	date = fmt.Sprintf("%sT%s+08:00", date[:index], date[index+1:])
-	fmt.Println(date)
 	return date
 }

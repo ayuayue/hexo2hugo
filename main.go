@@ -7,5 +7,4 @@ import (
 func main() {
 	filePathNames := file.GetAllMDFileName()
 	file.ReadAllMDFile(filePathNames)
-	file.Waiter.Wait()
 }
